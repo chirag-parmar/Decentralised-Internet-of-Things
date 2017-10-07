@@ -12,7 +12,7 @@
 #define DBG_OUTPUT_PORT Serial
 const char* ssid = "InOut_Hackathon";
 const char* password = "hackathon@2017";
-const char* host = "iota";
+const char* host = "iot";
 int balance = 0;
 long start;
 byte previoushash[32] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,}; 
@@ -58,8 +58,11 @@ bool loadFromSdCard(String path){
 
 void addFile(){
       if(server.args() != 7)                          //Add a new line
-        server.send(200, "text/plain", "BAD ARG");
-      
+        {
+          server.send(200, "text/plain", "BAD ARG");
+          return;
+        }
+      DBG_OUTPUT_PORT.println("Received GET request");
       String from = server.arg("from");
       String to = server.arg("to");
       String fileName = server.arg("fileName");
@@ -70,8 +73,8 @@ void addFile(){
       
       StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
-      root["to"] = to;
       root["from"] = from;
+      root["to"] = to;
       root["fileName"] = fileName;
       root["amount"] = amount;
       root["description"] = description;
@@ -86,7 +89,7 @@ void addFile(){
         newFile.close();
       }
       else
-        Serial.println("Error opening file..");
+        DBG_OUTPUT_PORT.println("Error opening file..");
       server.send(200,"text/plain", "New data added..");
     }
 
@@ -133,7 +136,9 @@ void handleFileUpload(){
       curHash += String(hash[j], HEX);
       DBG_OUTPUT_PORT.print(" ");
     }
-    
+    DBG_OUTPUT_PORT.println("Sending request..");
+    GETRequest("/newfile",from,to,fileName,amount,description,prevHash,curHash);
+    DBG_OUTPUT_PORT.println("Request sent..");
   }
 }
 void deleteRecursive(String path){
@@ -188,6 +193,25 @@ void handleCreate(){
   }
   returnOK();
 }
+void GETRequest(String getPath, String from,String to,String fileName, String amount,String description,String prevHash,String curHash)
+{   String ip = "10.1.24.121";
+    String port = "80";
+    String path = getPath + "?from=" + from + "&to=" + to + "&fileName=" + fileName + "&amount=" + amount + "&description=" + description + "&prevHash=" + prevHash + "&curHash" + curHash;
+    String url = "http://" + ip + ":" + port + path;
+    Serial.println("URL is: " + url);
+    if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+    HTTPClient http;  //Declare an object of class HTTPClient
+    http.begin(url);  //Specify request destination
+    int httpCode = http.GET();                                                                  //Send the request
+    if (httpCode > 0) { //Check the returning code
+      String payload = http.getString();   //Get the request response payload
+      Serial.println(payload);                     //Print the response payload
+    }
+    else
+      Serial.println(httpCode);
+    http.end();   //Close connection
+  }
+}  
 void printDirectory() {
   if(!server.hasArg("dir")) return returnFail("BAD ARGS");
   String path = server.arg("dir");
