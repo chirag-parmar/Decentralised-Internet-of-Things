@@ -10,9 +10,22 @@
 #include <SPI.h>
 #include <SD.h>
 #define DBG_OUTPUT_PORT Serial
+
+struct block{
+  String from;
+  String to;
+  String fileName;
+  String amount;
+  String description;
+  String prevHash;
+  String curHash;
+}blocks[50];
+
+int blockindex = 0;
+
 const char* ssid = "InOut_Hackathon";
 const char* password = "hackathon@2017";
-const char* host = "iot";
+const char* host = "iota";
 int balance = 0;
 long start;
 byte previoushash[32] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,}; 
@@ -59,10 +72,16 @@ bool loadFromSdCard(String path){
 void addFile(){
       if(server.args() != 7)                          //Add a new line
         {
+          DBG_OUTPUT_PORT.println(server.args());
           server.send(200, "text/plain", "BAD ARG");
           return;
         }
+      DBG_OUTPUT_PORT.println(server.args());
       DBG_OUTPUT_PORT.println("Received GET request");
+      
+      SHA256 hasher;
+      byte hash[SHA256_SIZE];
+    
       String from = server.arg("from");
       String to = server.arg("to");
       String fileName = server.arg("fileName");
@@ -70,6 +89,27 @@ void addFile(){
       String description = server.arg("description");
       String prevHash = server.arg("prevHash");
       String curHash = server.arg("curHash");
+      String compiled = from + to + fileName + amount + description + prevHash;
+      String calculatedHash;
+      char charBuf[200];
+      compiled.toCharArray(charBuf, compiled.length());
+      hasher.doUpdate(charBuf);
+      hasher.doFinal(hash);
+
+      for(int j=0;j<32;j++){
+        calculatedHash += String(hash[j], HEX);
+       }
+      //check if previous hash equals to teh current hash of the previous transaction
+      if(prevHash != blocks[blockindex -1].curHash){
+        returnFail("invalid prev hash");
+        return;
+      }
+      else if(calculatedHash != curHash){
+        returnFail("invalid current hash");
+        return;
+      }
+
+      updateBlock(from,to,fileName,amount,description,prevHash,curHash);
       
       StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
@@ -83,7 +123,7 @@ void addFile(){
       
       String groot;
       root.printTo(groot);
-      File newFile = SD.open("balances.txt", FILE_WRITE);
+      File newFile = SD.open("balance.txt", FILE_WRITE);
       if(newFile){
         newFile.println(groot);
         newFile.close();
@@ -111,17 +151,13 @@ void handleFileUpload(){
     
     DBG_OUTPUT_PORT.print("Upload: END, Size: "); DBG_OUTPUT_PORT.println(upload.totalSize);
     String fileName = String(upload.filename.c_str());
+    fileName.remove(0,1);
     String from = WiFi.localIP().toString();
     String to = from;
     String amount = "1";
-    String description = "get it from html";
-    String prevHash, curHash;
-    DBG_OUTPUT_PORT.println("Previous HASH:");
-    for(int i=0;i<32;i++){
-      DBG_OUTPUT_PORT.print(previoushash[i],HEX);
-      prevHash += String(previoushash[i], HEX);
-      DBG_OUTPUT_PORT.print(" ");
-    }
+    String description = "getItFromHtml";
+    String prevHash = blocks[blockindex -1].curHash; 
+    String curHash;
     
     String compiled = from + to + fileName + amount + description + prevHash;
     DBG_OUTPUT_PORT.println(compiled);
@@ -136,11 +172,48 @@ void handleFileUpload(){
       curHash += String(hash[j], HEX);
       DBG_OUTPUT_PORT.print(" ");
     }
+
+    StaticJsonBuffer<500> jsonBuffer;
+      JsonObject& root = jsonBuffer.createObject();
+      root["from"] = from;
+      root["to"] = to;
+      root["fileName"] = fileName;
+      root["amount"] = amount;
+      root["description"] = description;
+      root["prevHash"] = prevHash;
+      root["curHash"] = curHash;
+      
+      String groot;
+      root.printTo(groot);
+      File newFile = SD.open("balance.txt", FILE_WRITE);
+      if(newFile){
+        newFile.println(groot);
+        newFile.close();
+      }
+      else
+        DBG_OUTPUT_PORT.println("Error opening file..");
+    
     DBG_OUTPUT_PORT.println("Sending request..");
+    updateBlock(from,to,fileName,amount,description,prevHash,curHash);
     GETRequest("/newfile",from,to,fileName,amount,description,prevHash,curHash);
     DBG_OUTPUT_PORT.println("Request sent..");
   }
+  
 }
+
+void updateBlock(String from_,String to_,String fileName_, String amount_,String description_,String prevHash_,String curHash_){
+   blocks[blockindex].from = from_;
+   blocks[blockindex].to = to_;
+   blocks[blockindex].fileName = fileName_;
+   blocks[blockindex].amount = amount_;
+   blocks[blockindex].description = description_;
+   blocks[blockindex].prevHash = prevHash_;
+   blocks[blockindex].curHash = curHash_;
+    
+   blockindex += 1; 
+}
+
+
 void deleteRecursive(String path){
   File file = SD.open((char *)path.c_str());
   if(!file.isDirectory()){
@@ -194,11 +267,14 @@ void handleCreate(){
   returnOK();
 }
 void GETRequest(String getPath, String from,String to,String fileName, String amount,String description,String prevHash,String curHash)
-{   String ip = "10.1.24.121";
+{   
+    DBG_OUTPUT_PORT.println("The contents of the file are:");
+    readFile();
+    String ip = "10.1.26.123";
     String port = "80";
-    String path = getPath + "?from=" + from + "&to=" + to + "&fileName=" + fileName + "&amount=" + amount + "&description=" + description + "&prevHash=" + prevHash + "&curHash" + curHash;
-    String url = "http://" + ip + ":" + port + path;
-    Serial.println("URL is: " + url);
+    String path = "/newfile?from=" + from + "&to=" + to + "&fileName=" + fileName + "&amount=" + amount + "&description=" + description + "&prevHash=" + prevHash + "&curHash=" + curHash;
+    String url = "http://" + ip + ":80" + path;
+    Serial.println(url);
     if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
     HTTPClient http;  //Declare an object of class HTTPClient
     http.begin(url);  //Specify request destination
@@ -267,6 +343,35 @@ void handleNotFound(){
   server.send(404, "text/plain", message);
   DBG_OUTPUT_PORT.print(message);
 }
+
+void readFile()
+{ 
+         // buffer must be big enough to hold the whole JSON string
+  File newFile = SD.open("balance.txt",FILE_READ);
+  while(newFile.available()){
+    String fileline = newFile.readStringUntil('\n');
+    StaticJsonBuffer<500> jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject(fileline);
+    
+
+    if (!root.success()) {
+      DBG_OUTPUT_PORT.println("JsonParser.parse() failed");
+      return;
+    }
+
+    blocks[blockindex].from = root["from"].as<String>();
+    blocks[blockindex].to = root["to"].as<String>();
+    blocks[blockindex].fileName = root["fileName"].as<String>();
+    blocks[blockindex].amount = root["amount"].as<String>();
+    blocks[blockindex].description = root["description"].as<String>();
+    blocks[blockindex].prevHash = root["prevHash"].as<String>();
+    blocks[blockindex].curHash = root["curHash"].as<String>();
+    
+    blockindex += 1;
+  }
+  newFile.close();
+}
+
 void setup(void){
   DBG_OUTPUT_PORT.begin(115200);
   DBG_OUTPUT_PORT.setDebugOutput(true);
@@ -309,7 +414,9 @@ void setup(void){
      hasSD = true;
   }
   start = millis();
+  readFile();
 }
+
 void loop(void){
   server.handleClient();
 }
