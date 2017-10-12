@@ -1,5 +1,4 @@
 #include <ArduinoJson.h>
-
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -10,7 +9,10 @@
 #include <SPI.h>
 #include <SD.h>
 #define DBG_OUTPUT_PORT Serial
-
+struct coins{
+  int iot;
+  int iota;
+}value;
 struct block{
   String from;
   String to;
@@ -20,15 +22,13 @@ struct block{
   String prevHash;
   String curHash;
 }blocks[50];
-
 int blockindex = 0;
-
-const char* ssid = "InOut_Hackathon";
-const char* password = "hackathon@2017";
+const char* ssid = "OP3T";
+const char* password = "batman1234";
 const char* host = "iota";
 int balance = 0;
 long start;
-byte previoushash[32] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,}; 
+byte previoushash[32];
 ESP8266WebServer server(80);
 static bool hasSD = false;
 File uploadFile;
@@ -69,6 +69,46 @@ bool loadFromSdCard(String path){
   return true;
 }
 
+void checkCoins()
+{
+  File newFile = SD.open("coins.txt",FILE_READ);
+    String fileline = newFile.readString();
+    StaticJsonBuffer<100> jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject(fileline);
+    DBG_OUTPUT_PORT.println(fileline);
+    if (!root.success()) {
+      DBG_OUTPUT_PORT.println("JsonParser.parse() failed");
+      return;
+    }
+    value.iot = root["iot"];
+    DBG_OUTPUT_PORT.println("IoT's coin count:");
+    DBG_OUTPUT_PORT.println(value.iot);
+    //value.iot = (value.iot).toInt();
+    value.iota = root["iota"];
+    DBG_OUTPUT_PORT.println("IoTa's coin count:");
+    DBG_OUTPUT_PORT.println(value.iota);
+    //value.iota = (value.iota).toInt();
+  newFile.close();
+}
+void updateCoins()
+{
+      StaticJsonBuffer<100> jsonBuffer;
+      JsonObject& root = jsonBuffer.createObject();
+      root["iot"] = String(value.iot);
+      root["iota"] = String(value.iota);
+      String groot;
+      root.printTo(groot);
+      if(SD.exists("coins.txt"))
+        SD.remove("coins.txt");
+      File newFile = SD.open("coins.txt", FILE_WRITE);
+      if(newFile){
+        newFile.println(groot);
+        newFile.close();
+      }
+      else
+        DBG_OUTPUT_PORT.println("Error opening file..");
+}
+
 void addFile(){
       if(server.args() != 7)                          //Add a new line
         {
@@ -95,7 +135,6 @@ void addFile(){
       compiled.toCharArray(charBuf, compiled.length());
       hasher.doUpdate(charBuf);
       hasher.doFinal(hash);
-
       for(int j=0;j<32;j++){
         calculatedHash += String(hash[j], HEX);
        }
@@ -108,8 +147,20 @@ void addFile(){
         returnFail("invalid current hash");
         return;
       }
-
       updateBlock(from,to,fileName,amount,description,prevHash,curHash);
+    
+      if(from == "10.1.26.123")
+        {
+          value.iot += amount.toInt();
+          value.iota -= amount.toInt();
+        }
+        else
+        {
+          value.iot += amount.toInt();
+          value.iota -= amount.toInt();
+        }
+        updateCoins();
+        checkCoins();
       
       StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
@@ -132,7 +183,7 @@ void addFile(){
         DBG_OUTPUT_PORT.println("Error opening file..");
       server.send(200,"text/plain", "New data added..");
     }
-
+    
 void handleFileUpload(){
   if(server.uri() != "/edit") return;
   HTTPUpload& upload = server.upload();
@@ -166,13 +217,15 @@ void handleFileUpload(){
     hasher.doUpdate(charBuf);
     hasher.doFinal(hash);
     
+        updateCoins();
+        checkCoins();
+    
     DBG_OUTPUT_PORT.println("CURRENT HASH:");
     for(int j=0;j<32;j++){
       DBG_OUTPUT_PORT.print(hash[j],HEX);
       curHash += String(hash[j], HEX);
       DBG_OUTPUT_PORT.print(" ");
     }
-
     StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
       root["from"] = from;
@@ -200,7 +253,6 @@ void handleFileUpload(){
   }
   
 }
-
 void updateBlock(String from_,String to_,String fileName_, String amount_,String description_,String prevHash_,String curHash_){
    blocks[blockindex].from = from_;
    blocks[blockindex].to = to_;
@@ -212,8 +264,6 @@ void updateBlock(String from_,String to_,String fileName_, String amount_,String
     
    blockindex += 1; 
 }
-
-
 void deleteRecursive(String path){
   File file = SD.open((char *)path.c_str());
   if(!file.isDirectory()){
@@ -266,11 +316,12 @@ void handleCreate(){
   }
   returnOK();
 }
+
 void GETRequest(String getPath, String from,String to,String fileName, String amount,String description,String prevHash,String curHash)
 {   
     DBG_OUTPUT_PORT.println("The contents of the file are:");
     readFile();
-    String ip = "10.1.26.123";
+    String ip = "10.1.26.43";
     String port = "80";
     String path = "/newfile?from=" + from + "&to=" + to + "&fileName=" + fileName + "&amount=" + amount + "&description=" + description + "&prevHash=" + prevHash + "&curHash=" + curHash;
     String url = "http://" + ip + ":80" + path;
@@ -343,7 +394,6 @@ void handleNotFound(){
   server.send(404, "text/plain", message);
   DBG_OUTPUT_PORT.print(message);
 }
-
 void readFile()
 { 
          // buffer must be big enough to hold the whole JSON string
@@ -353,12 +403,10 @@ void readFile()
     StaticJsonBuffer<500> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject(fileline);
     
-
     if (!root.success()) {
       DBG_OUTPUT_PORT.println("JsonParser.parse() failed");
       return;
     }
-
     blocks[blockindex].from = root["from"].as<String>();
     blocks[blockindex].to = root["to"].as<String>();
     blocks[blockindex].fileName = root["fileName"].as<String>();
@@ -399,12 +447,13 @@ void setup(void){
     DBG_OUTPUT_PORT.println(".local");
   }
   server.on("/newfile", addFile);
+  server.on("/buyFile", addFile);
   server.on("/list", HTTP_GET, printDirectory);
   server.on("/edit", HTTP_DELETE, handleDelete);
   server.on("/edit", HTTP_PUT, handleCreate);
   server.on("/edit", HTTP_POST, [](){ returnOK(); }, handleFileUpload);
   server.on("/update", [](){
-    ESPhttpUpdate.update("http://192.168.43.84/blinkesp.bin"); 
+      t_httpUpdate_return ret = ESPhttpUpdate.update("https://raw.githubusercontent.com/sureshwaitforitkumar/Basic-Automation-using-NodeMCU/master/blinkESP.bin","","CC AA 48 48 66 46 0E 91 53 2C 9C 7C 23 2A B1 74 4D 29 9D 33"); 
   });
   server.onNotFound(handleNotFound);
   server.begin();
@@ -413,10 +462,11 @@ void setup(void){
      DBG_OUTPUT_PORT.println("SD Card initialized.");
      hasSD = true;
   }
+  updateCoins();
+  checkCoins();
   start = millis();
   readFile();
 }
-
 void loop(void){
   server.handleClient();
 }
