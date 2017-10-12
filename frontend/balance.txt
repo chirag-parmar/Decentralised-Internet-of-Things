@@ -1,2 +1,5 @@
-{"fileName":"terimaa"}
-{"fileName":"loduchand"}
+{"from":"chirag", "to":"chirag", "amount":"50"}
+{"from":"chirag", "to":"swaroop", "amount":"50"}
+{"from":"swaroop", "to":"swaroop", "amount":"50"}
+{"from":"swaroop", "to":"chirag", "amount":"50"}
+{"from":"chirag", "to":"aditya", "amount":"50"}

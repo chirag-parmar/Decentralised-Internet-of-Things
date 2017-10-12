@@ -1,8 +1,66 @@
 <html>
-<head> 
-	<title>Team IoTa</title>
-	<script src = "killer.js"></script>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=utf-8">
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<title>IoTa Coin</title>
+	<script src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
 </head>
+
 <body>
+	<div class="blended_grid">
+		<div class="topBanner">
+			<br><br><br>
+			<center><h1>Decentralised Internet of Things</h1></center>
+		</div>
+		<div class="leftColumn">
+		</div>
+		<div id="target" class="feedHost">
+		</div>
+		<div class="leftColumn">
+		</div>
+	</div>
+	<script>
+	var client = new XMLHttpRequest();
+	var container = document.getElementById('target')
+	var result = '';
+	client.open('GET', './balance.txt');
+	client.overrideMimeType("text/plain; charset=x-user-defined");
+	client.onreadystatechange = function() {
+		if(client.readyState === XMLHttpRequest.DONE && client.status === 200) {
+  		result = client.responseText;
+			result = result.split('\n')
+			for(var i=0; i<result.length; i++){
+				if(result[i] != ''){
+					var data = JSON.parse(result[i]);
+					container.appendChild(createDiv(data,i))
+				}
+			}
+		}
+	}
+	client.send();
+
+	var createDiv = function(data,i) {
+		var innerDiv = document.createElement('div')
+		innerDiv.id = 'feed' + i;
+		innerDiv.class = 'feedItem';
+		innerDiv.style.backgroundColor = '#ffffff';
+		innerDiv.style.opacity = '0.5';
+		innerDiv.style.margin = '10px';
+		innerDiv.color = '#FFFFFF'
+		innerDiv.style.float = 'none';
+		innerDiv.style.clear = 'both';
+		innerDiv.style.height = '150px';
+		innerDiv.style.width = '800px';
+		var from = document.createElement('h1')
+		var to = document.createElement('h1')
+		var lineBreak = document.createElement('br')
+		from.append("From: " + data['from'])
+		to.append("To: " + data["to"])
+		innerDiv.append(from);
+		innerDiv.append(lineBreak);
+		innerDiv.append(to);
+		return innerDiv
+	}
+	</script>
 </body>
-</html> 
+</html>
