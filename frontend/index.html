@@ -54,6 +54,16 @@
 		var from = document.createElement('h1')
 		var to = document.createElement('h1')
 		var lineBreak = document.createElement('br')
+		var button = document.createElement('button')
+		button.addEventListener("click", function(){
+			var client2 = new XMLHttpRequest();
+			client2 = ('GET', '/buyfile?from=sadfasdf&to=adasdfasf&fileName=asdf.bin&amount=2&description=dafsdsadf&prevHash=asdfasdf&curHash=sdadfasdfasdf')
+			client.onreadystatechange = function() {
+				if(client.readyState === XMLHttpRequest.DONE && client.status === 200) {
+		  		result = client.responseText;
+					console.log("aaj ka hogaya");
+				}
+		});
 		from.append("From: " + data['from'])
 		to.append("To: " + data["to"])
 		innerDiv.append(from);
