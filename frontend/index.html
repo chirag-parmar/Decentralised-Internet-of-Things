@@ -54,21 +54,32 @@
 		var from = document.createElement('h1')
 		var to = document.createElement('h1')
 		var lineBreak = document.createElement('br')
-		var button = document.createElement('button')
-		button.addEventListener("click", function(){
-			var client2 = new XMLHttpRequest();
+		var button = document.createElement('input')
+		button.type = 'button'
+		button.value = 'Buy'
+		button.style.backgroundColor = 'Red'
+		button.style.color = 'white'
+		button.style.fontSize = '40px'
+		button.style.marginRight = '10'
+		button.style.float = 'right'
+		button.style.height = '50px';
+		button.style.width = '80px';
+		button.onclick = function(){
+			console.log("aaj ka hogaya" + " " + i)
+			/*var client2 = new XMLHttpRequest();
 			client2 = ('GET', '/buyfile?from=sadfasdf&to=adasdfasf&fileName=asdf.bin&amount=2&description=dafsdsadf&prevHash=asdfasdf&curHash=sdadfasdfasdf')
 			client.onreadystatechange = function() {
 				if(client.readyState === XMLHttpRequest.DONE && client.status === 200) {
 		  		result = client.responseText;
 					console.log("aaj ka hogaya");
-				}
-		});
+				}*/
+		}
 		from.append("From: " + data['from'])
 		to.append("To: " + data["to"])
 		innerDiv.append(from);
 		innerDiv.append(lineBreak);
 		innerDiv.append(to);
+		innerDiv.append(button);
 		return innerDiv
 	}
 	</script>
