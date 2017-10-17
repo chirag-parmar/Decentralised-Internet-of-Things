@@ -1,5 +1,5 @@
 TO DO list:
---> Priority: Restructure the whole repository
+--> Priority: Restructure the whole repository -- done
 
 1) UDP Broadcasting of addresses
 2) Address Management
