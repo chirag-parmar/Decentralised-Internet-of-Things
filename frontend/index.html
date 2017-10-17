@@ -32,7 +32,9 @@
 			for(var i=0; i<result.length; i++){
 				if(result[i] != ''){
 					var data = JSON.parse(result[i]);
-					container.appendChild(createDiv(data,i))
+					if(data['from'] == data['to']){
+						container.appendChild(createDiv(data,i))
+					}
 				}
 			}
 		}
@@ -49,12 +51,12 @@
 		innerDiv.color = '#FFFFFF'
 		innerDiv.style.float = 'none';
 		innerDiv.style.clear = 'both';
-		innerDiv.style.height = '150px';
+		innerDiv.style.height = '175px';
 		innerDiv.style.width = '800px';
-		var from = document.createElement('h1')
-		var to = document.createElement('h1')
 		var lineBreak = document.createElement('br')
 		var button = document.createElement('input')
+
+		//create a dynamic button
 		button.type = 'button'
 		button.value = 'Buy'
 		button.style.backgroundColor = 'Red'
@@ -66,19 +68,34 @@
 		button.style.width = '80px';
 		button.onclick = function(){
 			console.log("aaj ka hogaya" + " " + i)
-			/*var client2 = new XMLHttpRequest();
-			client2 = ('GET', '/buyfile?from=sadfasdf&to=adasdfasf&fileName=asdf.bin&amount=2&description=dafsdsadf&prevHash=asdfasdf&curHash=sdadfasdfasdf')
+			var client = new XMLHttpRequest();
+			client.open('GET', 'http://iot.local/buyFile?from='+ location.host +'f&to='+ data['to'] +'&fileName=' + data['fileName'] + '&amount=' + data['amount'] + '&description=boughtfile')
 			client.onreadystatechange = function() {
+				console.log("button pressed")
 				if(client.readyState === XMLHttpRequest.DONE && client.status === 200) {
 		  		result = client.responseText;
-					console.log("aaj ka hogaya");
-				}*/
+					console.log("Get request succesfully made");
+					console.log(client.status)
+				}
+				else{
+					console.log(client.status)
+					console.log("Couldn't make a get request")
+				}
+			}
+			client.send()
 		}
+
+		var from = document.createElement('h2')
+		var fileName = document.createElement('h1')
+		var amount = document.createElement('h3')
 		from.append("From: " + data['from'])
-		to.append("To: " + data["to"])
+		fileName.append("Filename: " + data["fileName"])
+		amount.append("Amount: " + data["amount"])
+		innerDiv.append(fileName);
+		innerDiv.append(lineBreak);
 		innerDiv.append(from);
 		innerDiv.append(lineBreak);
-		innerDiv.append(to);
+		innerDiv.append(amount);
 		innerDiv.append(button);
 		return innerDiv
 	}
