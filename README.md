@@ -1,9 +1,10 @@
 TO DO list:
---> Priority: Restructure the whole repository -- done
-
-1) UDP Broadcasting of addresses
-2) Address Management
-3) Stop from buying your own file
-4) Crypto for transactions
-5) Currency
-6) Consensus
+1) Priority: Restructure the whole repository -- done
+2) Remove genesis block from UI --done
+3) Add descriptions to UI --done
+3) UDP Broadcasting of addresses
+4) Address Management
+5) Stop from buying your own file
+6) Crypto for transactions
+7) Currency
+8) Consensus

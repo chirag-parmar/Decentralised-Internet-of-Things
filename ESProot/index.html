@@ -32,7 +32,7 @@
 			for(var i=0; i<result.length; i++){
 				if(result[i] != ''){
 					var data = JSON.parse(result[i]);
-					if(data['from'] == data['to']){
+					if(data['from'] == data['to'] && (data['from'] != '' || data['to'] != '')){
 						container.appendChild(createDiv(data,i))
 					}
 				}
@@ -67,19 +67,18 @@
 		button.style.height = '50px';
 		button.style.width = '80px';
 		button.onclick = function(){
-			console.log("aaj ka hogaya" + " " + i)
 			var client = new XMLHttpRequest();
-			client.open('GET', 'http://iot.local/buyFile?from='+ location.host +'f&to='+ data['to'] +'&fileName=' + data['fileName'] + '&amount=' + data['amount'] + '&description=boughtfile')
+			client.open('GET', 'http://iot.local/buyFile?from='+ location.host +'&to='+ data['to'] +'&fileName=' + data['fileName'] + '&amount=' + data['amount'] + '&description=boughtfile')
 			client.onreadystatechange = function() {
-				console.log("button pressed")
+				console.log("Making a GET request")
 				if(client.readyState === XMLHttpRequest.DONE && client.status === 200) {
 		  		result = client.responseText;
-					console.log("Get request succesfully made");
+					console.log("GET request succesfully made");
 					console.log(client.status)
 				}
 				else{
 					console.log(client.status)
-					console.log("Couldn't make a get request")
+					console.log("Couldn't make a GET request")
 				}
 			}
 			client.send()
@@ -88,13 +87,14 @@
 		var from = document.createElement('h2')
 		var fileName = document.createElement('h1')
 		var amount = document.createElement('h3')
+		var description = document.createElement('p')
 		from.append("From: " + data['from'])
 		fileName.append("Filename: " + data["fileName"])
 		amount.append("Amount: " + data["amount"])
+		description.append(data["description"])
 		innerDiv.append(fileName);
-		innerDiv.append(lineBreak);
 		innerDiv.append(from);
-		innerDiv.append(lineBreak);
+		innerDiv.append(description)
 		innerDiv.append(amount);
 		innerDiv.append(button);
 		return innerDiv
