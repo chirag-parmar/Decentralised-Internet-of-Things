@@ -9,10 +9,6 @@
 #include <SPI.h>
 #include <SD.h>
 #define DBG_OUTPUT_PORT Serial
-struct coins{
-  int iot;
-  int iota;
-}value;
 struct block{
   String from;
   String to;
@@ -23,9 +19,9 @@ struct block{
   String curHash;
 }blocks[50];
 int blockindex = 0;
-const char* ssid = "OP3T";
-const char* password = "batman1234";
-const char* host = "iota";
+const char* ssid = "Next Tech IoT";
+const char* password = "Iot706nTl";
+const char* host = "iot";
 int balance = 0;
 long start;
 byte previoushash[32];
@@ -68,47 +64,6 @@ bool loadFromSdCard(String path){
   dataFile.close();
   return true;
 }
-
-void checkCoins()
-{
-  File newFile = SD.open("coins.txt",FILE_READ);
-    String fileline = newFile.readString();
-    StaticJsonBuffer<100> jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(fileline);
-    DBG_OUTPUT_PORT.println(fileline);
-    if (!root.success()) {
-      DBG_OUTPUT_PORT.println("JsonParser.parse() failed");
-      return;
-    }
-    value.iot = root["iot"];
-    DBG_OUTPUT_PORT.println("IoT's coin count:");
-    DBG_OUTPUT_PORT.println(value.iot);
-    //value.iot = (value.iot).toInt();
-    value.iota = root["iota"];
-    DBG_OUTPUT_PORT.println("IoTa's coin count:");
-    DBG_OUTPUT_PORT.println(value.iota);
-    //value.iota = (value.iota).toInt();
-  newFile.close();
-}
-void updateCoins()
-{
-      StaticJsonBuffer<100> jsonBuffer;
-      JsonObject& root = jsonBuffer.createObject();
-      root["iot"] = String(value.iot);
-      root["iota"] = String(value.iota);
-      String groot;
-      root.printTo(groot);
-      if(SD.exists("coins.txt"))
-        SD.remove("coins.txt");
-      File newFile = SD.open("coins.txt", FILE_WRITE);
-      if(newFile){
-        newFile.println(groot);
-        newFile.close();
-      }
-      else
-        DBG_OUTPUT_PORT.println("Error opening file..");
-}
-
 void addFile(){
       if(server.args() != 7)                          //Add a new line
         {
@@ -125,6 +80,7 @@ void addFile(){
       String from = server.arg("from");
       String to = server.arg("to");
       String fileName = server.arg("fileName");
+      
       String amount = server.arg("amount");
       String description = server.arg("description");
       String prevHash = server.arg("prevHash");
@@ -149,18 +105,7 @@ void addFile(){
       }
       updateBlock(from,to,fileName,amount,description,prevHash,curHash);
     
-      if(from == "10.1.26.123")
-        {
-          value.iot += amount.toInt();
-          value.iota -= amount.toInt();
-        }
-        else
-        {
-          value.iot += amount.toInt();
-          value.iota -= amount.toInt();
-        }
-        updateCoins();
-        checkCoins();
+
       
       StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
@@ -184,15 +129,14 @@ void addFile(){
       server.send(200,"text/plain", "New data added..");
     }
 
-
-
 void buyFile(){
-      if(server.args() != 7)                          //Add a new line
+      if(server.args() != 5)                          //Add a new line
         {
           DBG_OUTPUT_PORT.println(server.args());
-          server.send(200, "text/plain", "BAD ARG");
+          returnFail("BAD ARGS");
           return;
         }
+      //returnOK();
       DBG_OUTPUT_PORT.println(server.args());
       DBG_OUTPUT_PORT.println("Received GET request for buying file");
       
@@ -202,37 +146,39 @@ void buyFile(){
       String from = server.arg("from");
       String to = server.arg("to");
       String fileName = server.arg("fileName");
+      DBG_OUTPUT_PORT.println(fileName);
       String amount = server.arg("amount");
       String description = server.arg("description");
-      String prevHash = server.arg("prevHash");
-      String curHash = server.arg("curHash");
+      String prevHash = blocks[blockindex -1].curHash;
+      //String prevHash = server.arg("prevHash");
+      //String curHash = server.arg("curHash");
       String compiled = from + to + fileName + amount + description + prevHash;
-      String calculatedHash;
+      String curHash;
       char charBuf[200];
       compiled.toCharArray(charBuf, compiled.length());
       hasher.doUpdate(charBuf);
       hasher.doFinal(hash);
       for(int j=0;j<32;j++){
-        calculatedHash += String(hash[j], HEX);
+        curHash += String(hash[j], HEX);
        }
-      //check if previous hash equals to the current hash of the previous transaction
-      if(prevHash != blocks[blockindex -1].curHash){
-        returnFail("invalid prev hash");
-        return;
-      }
-      else if(calculatedHash != curHash){
-        returnFail("invalid current hash");
-        return;
-      }
-   //   updateBlock(from,to,fileName,amount,description,prevHash,curHash);
+
+      updateBlock(from,to,fileName,amount,description,prevHash,curHash);
     
-      //ADD COIN TRANSACTION CODE
-      String url = "http://" + to + "/" + fileName;      
-     // t_httpUpdate_return ret = ESPhttpUpdate.update("https://raw.githubusercontent.com/sureshwaitforitkumar/Basic-Automation-using-NodeMCU/master/blinkESP.bin"); 
+      //ADD COIN TRANSACTION CODE 
+      String url = "http://" + to + "/" + fileName;  
+      DBG_OUTPUT_PORT.println(url);    
+     // t_httpUpdate_return ret = ESPhttpUpdate.update("https://raw.githubusercontent.com/sureshwaitforitkumar/Basic-Automation-using-NodeMCU/master/blinkESP.bin");
+       //t_httpUpdate_return ret = ESPhttpUpdate.update(url);
     DBG_OUTPUT_PORT.println("Buying file worked...");
+    
+    DBG_OUTPUT_PORT.println("Sending request..");
+    updateBlock(from,to,fileName,amount,description,prevHash,curHash);
+    GETRequest("/newfile",from,to,fileName,amount,description,prevHash,curHash);
+    DBG_OUTPUT_PORT.println("Broadcasting finished..");
+    
 
       
-     /* StaticJsonBuffer<500> jsonBuffer;
+      StaticJsonBuffer<500> jsonBuffer;
       JsonObject& root = jsonBuffer.createObject();
       root["from"] = from;
       root["to"] = to;
@@ -251,8 +197,8 @@ void buyFile(){
       }
       else
         DBG_OUTPUT_PORT.println("Error opening file..");
-      server.send(200,"text/plain", "Buying new file...");
-    */}
+     server.send(200,"text/plain", "Buying new file...");
+  }
 
     
 void handleFileUpload(){
@@ -261,7 +207,7 @@ void handleFileUpload(){
   if(upload.status == UPLOAD_FILE_START){
     if(SD.exists((char *)upload.filename.c_str())) return;
     uploadFile = SD.open(upload.filename.c_str(), FILE_WRITE);
-    DBG_OUTPUT_PORT.print("Upload: START, filename: "); DBG_OUTPUT_PORT.println(upload.filename);
+    DBG_OUTPUT_PORT.print("Upload: START, filename: "); DBG_OUTPUT_PORT.println(upload.filename);DBG_OUTPUT_PORT.println(upload.filename.c_str());
   } else if(upload.status == UPLOAD_FILE_WRITE){
     if(uploadFile) uploadFile.write(upload.buf, upload.currentSize);
     DBG_OUTPUT_PORT.print("Upload: WRITE, Bytes: "); DBG_OUTPUT_PORT.println(upload.currentSize);
@@ -287,9 +233,7 @@ void handleFileUpload(){
     compiled.toCharArray(charBuf, compiled.length());
     hasher.doUpdate(charBuf);
     hasher.doFinal(hash);
-    
-        updateCoins();
-        checkCoins();
+
     
     DBG_OUTPUT_PORT.println("CURRENT HASH:");
     for(int j=0;j<32;j++){
@@ -533,8 +477,6 @@ void setup(void){
      DBG_OUTPUT_PORT.println("SD Card initialized.");
      hasSD = true;
   }
-  updateCoins();
-  checkCoins();
   start = millis();
   readFile();
 }
